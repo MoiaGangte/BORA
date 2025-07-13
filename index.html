@@ -319,7 +319,7 @@
         </div>
     </div>
 
-    <audio id="slice-audio" src="slice.mp3" preload="auto"></audio>
+    <audio id="slice-audio" src="sound.mp3" preload="auto"></audio>
 
     <script>
         // globalConfig.js
@@ -1831,7 +1831,7 @@
         const spawnExtraDelay = 300;
         let targetSpeed = 1;
 
-        const sliceAudio = document.getElementById('slice-audio');
+        const sliceAudio= document.getElementById('slice-audio');
 
         function tick(width, height, simTime, simSpeed, lag) {
             PERF_START('frame');
