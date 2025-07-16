@@ -302,7 +302,8 @@
             <h1>BORA</h1>
             <button type="button" class="play-normal-btn">PLAY GAME</button>
             <button type="button" class="play-casual-btn">CASUAL MODE</button>
-            <div class="credits">all right reserver by @Moia-Gangte</div>
+            <div class="top-scores-container"></div>
+            <div class="credits">All right reserved by @Moia-Gangte</div>
         </div>
         <div class="menu menu--pause">
             <h1>Paused</h1>
@@ -314,12 +315,18 @@
             <h2>Your Score:</h2>
             <div class="final-score-lbl"></div>
             <div class="high-score-lbl"></div>
+            <div class="name-input-container" style="display:none; margin: 1em 0;">
+                <input type="text" class="player-name-input" placeholder="Enter your name" maxlength="16" style="font-size:1.2em; padding:0.3em; width: 180px;">
+                <button type="button" class="submit-name-btn" style="font-size:1.1em; margin-left:0.5em;">Submit</button>
+            </div>
             <button type="button" class="play-again-btn">PLAY AGAIN</button>
             <button type="button" class="menu-btn--score">MAIN MENU</button>
         </div>
     </div>
 
-    <audio id="slice-audio" src="sound.mp3" preload="auto"></audio>
+    <audio id="slice-audio" src="crashing.mp3" preload="auto"></audio>
+    <audio id="crashing-audio" src="crashing.mp3" preload="auto"></audio>
+    <audio id="mmm-audio" src="mmm.mp3" preload="auto"></audio>
 
     <script>
         // globalConfig.js
@@ -467,10 +474,30 @@
         // Local Storage //
         ///////////////////
 
-        const highScoreKey = '__menja__highScore';
+        const highScoreKey = '__moia__highScore';
+        const topScoresKey = '__moia__topScores';
         const getHighScore = () => {
             const raw = localStorage.getItem(highScoreKey);
             return raw ? parseInt(raw, 10) : 0;
+        };
+        // Get top 3 scores (with names) from localStorage
+        const getTopScores = () => {
+            const raw = localStorage.getItem(topScoresKey);
+            if (!raw) return [];
+            try {
+                return JSON.parse(raw);
+            } catch {
+                return [];
+            }
+        };
+        // Save top 3 scores (with names) to localStorage
+        const setTopScores = (entry) => {
+            let scores = getTopScores();
+            scores.push(entry);
+            scores = scores.filter(s => s && typeof s.score === 'number' && !isNaN(s.score) && typeof s.name === 'string');
+            scores.sort((a, b) => b.score - a.score);
+            scores = scores.slice(0, 3);
+            localStorage.setItem(topScoresKey, JSON.stringify(scores));
         };
 
         let _lastHighscore = getHighScore();
@@ -1610,6 +1637,11 @@
 
         const finalScoreLblNode = $('.final-score-lbl');
         const highScoreLblNode = $('.high-score-lbl');
+        const topScoresContainerNode = document.querySelector('.top-scores-container');
+        const nameInputContainerNode = document.querySelector('.name-input-container');
+        const playerNameInputNode = document.querySelector('.player-name-input');
+        const submitNameBtnNode = document.querySelector('.submit-name-btn');
+        let pendingHighScore = null;
 
 
 
@@ -1629,16 +1661,41 @@
             switch (state.menus.active) {
                 case MENU_MAIN:
                     showMenu(menuMainNode);
+                    // Render top 3 scores
+                    if (topScoresContainerNode) {
+                        const topScores = getTopScores();
+                        if (topScores.length > 0) {
+                            topScoresContainerNode.innerHTML = '<div style="margin-top:1em;font-size:1.1em;">Top Scores:</div>' +
+                                topScores.map((entry, i) => `<div style="font-size:1em;">${i + 1}. ${entry.name ? entry.name : 'Anonymous'} - ${formatNumber(entry.score)}</div>`).join('');
+                        } else {
+                            topScoresContainerNode.innerHTML = '';
+                        }
+                    }
                     break;
                 case MENU_PAUSE:
                     showMenu(menuPauseNode);
                     break;
                 case MENU_SCORE:
                     finalScoreLblNode.textContent = formatNumber(state.game.score);
-                    if (isNewHighScore()) {
+                    // Only show name input for new high score in PLAY GAME mode
+                    if (isNewHighScore() && state.game.mode === GAME_MODE_RANKED) {
                         highScoreLblNode.textContent = 'New High Score!';
+                        if (nameInputContainerNode) {
+                            nameInputContainerNode.style.display = '';
+                            playerNameInputNode.value = '';
+                            playerNameInputNode.focus();
+                            pendingHighScore = state.game.score;
+                            playerNameInputNode.disabled = false;
+                            submitNameBtnNode.disabled = false;
+                        }
                     } else {
                         highScoreLblNode.textContent = `High Score: ${formatNumber(getHighScore())}`;
+                        if (nameInputContainerNode) {
+                            nameInputContainerNode.style.display = 'none';
+                            pendingHighScore = null;
+                            playerNameInputNode.disabled = false;
+                            submitNameBtnNode.disabled = false;
+                        }
                     }
                     showMenu(menuScoreNode);
                     break;
@@ -1791,7 +1848,10 @@
 
         function endGame() {
             handleCanvasPointerUp();
-            if (isNewHighScore()) {
+            // Only prompt for name and update high scores in PLAY GAME mode
+            if (isNewHighScore() && state.game.mode === GAME_MODE_RANKED) {
+                // Name input will be shown in renderMenus
+            } else if (isNewHighScore()) {
                 setHighScore(state.game.score);
             }
             setActiveMenu(MENU_SCORE);
@@ -1832,6 +1892,8 @@
         let targetSpeed = 1;
 
         const sliceAudio= document.getElementById('slice-audio');
+        const crashingAudio = document.getElementById('crashing-audio');
+        const mmmAudio = document.getElementById('mmm-audio');
 
         function tick(width, height, simTime, simSpeed, lag) {
             PERF_START('frame');
@@ -2453,6 +2515,11 @@
             if (pointerIsDown) {
                 pointerScreen.x = x;
                 pointerScreen.y = y;
+                if (mmmAudio) {
+                    console.log('Playing mmm sound (pointer move)');
+                    mmmAudio.currentTime = 0;
+                    mmmAudio.play().catch(e => console.error('mmm audio error (pointer move):', e));
+                }
             }
         }
 
@@ -2511,6 +2578,45 @@
         // ============================================================================
 
         setupCanvases();
+
+        function unlockAudio() {
+            if (sliceAudio) {
+                sliceAudio.volume = 1;
+                sliceAudio.play().then(() => sliceAudio.pause()).catch(() => {});
+            }
+            if (crashingAudio) {
+                crashingAudio.volume = 1;
+                crashingAudio.play().then(() => crashingAudio.pause()).catch(() => {});
+            }
+            if (mmmAudio) {
+                mmmAudio.volume = 1;
+                mmmAudio.play().then(() => mmmAudio.pause()).catch(() => {});
+            }
+            document.body.removeEventListener('click', unlockAudio);
+        }
+
+        // Handle name submission for high score (PLAY GAME mode only)
+        if (submitNameBtnNode) {
+            submitNameBtnNode.addEventListener('click', () => {
+                if (pendingHighScore && playerNameInputNode.value.trim() && !submitNameBtnNode.disabled) {
+                    setTopScores({ name: playerNameInputNode.value.trim(), score: pendingHighScore });
+                    setHighScore(pendingHighScore); // update high score value
+                    // Disable input and button to prevent further submissions
+                    playerNameInputNode.disabled = true;
+                    submitNameBtnNode.disabled = true;
+                    nameInputContainerNode.style.display = 'none';
+                    pendingHighScore = null;
+                    playerNameInputNode.disabled = false;
+                    submitNameBtnNode.disabled = false;
+                    setActiveMenu(MENU_MAIN); // Redirect to homepage
+                }
+            });
+            playerNameInputNode.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !playerNameInputNode.disabled) {
+                    submitNameBtnNode.click();
+                }
+            });
+        }
 
     </script>
 </body>
