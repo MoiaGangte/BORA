@@ -328,6 +328,11 @@
     <audio id="crashing-audio" src="crashing.mp3" preload="auto"></audio>
     <audio id="mmm-audio" src="mmm.mp3" preload="auto"></audio>
 
+    <!-- Firebase App (the core Firebase SDK) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <!-- Firestore SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
     <script>
         // globalConfig.js
         // ============================================================================
@@ -474,39 +479,7 @@
         // Local Storage //
         ///////////////////
 
-        const highScoreKey = '__moia__highScore';
-        const topScoresKey = '__moia__topScores';
-        const getHighScore = () => {
-            const raw = localStorage.getItem(highScoreKey);
-            return raw ? parseInt(raw, 10) : 0;
-        };
-        // Get top 3 scores (with names) from localStorage
-        const getTopScores = () => {
-            const raw = localStorage.getItem(topScoresKey);
-            if (!raw) return [];
-            try {
-                return JSON.parse(raw);
-            } catch {
-                return [];
-            }
-        };
-        // Save top 3 scores (with names) to localStorage
-        const setTopScores = (entry) => {
-            let scores = getTopScores();
-            scores.push(entry);
-            scores = scores.filter(s => s && typeof s.score === 'number' && !isNaN(s.score) && typeof s.name === 'string');
-            scores.sort((a, b) => b.score - a.score);
-            scores = scores.slice(0, 3);
-            localStorage.setItem(topScoresKey, JSON.stringify(scores));
-        };
-
-        let _lastHighscore = getHighScore();
-        const setHighScore = score => {
-            _lastHighscore = getHighScore();
-            localStorage.setItem(highScoreKey, String(score));
-        };
-
-        const isNewHighScore = () => state.game.score > _lastHighscore;
+        // Only keep the Firebase-based highscore logic and its single declaration of _lastHighscore, setHighScore, and isNewHighScore.
 
 
 
@@ -1663,13 +1636,14 @@
                     showMenu(menuMainNode);
                     // Render top 3 scores
                     if (topScoresContainerNode) {
-                        const topScores = getTopScores();
-                        if (topScores.length > 0) {
-                            topScoresContainerNode.innerHTML = '<div style="margin-top:1em;font-size:1.1em;">Top Scores:</div>' +
-                                topScores.map((entry, i) => `<div style="font-size:1em;">${i + 1}. ${entry.name ? entry.name : 'Anonymous'} - ${formatNumber(entry.score)}</div>`).join('');
-                        } else {
-                            topScoresContainerNode.innerHTML = '';
-                        }
+                        getTopScores().then(topScores => {
+                            if (topScores.length > 0) {
+                                topScoresContainerNode.innerHTML = '<div style="margin-top:1em;font-size:1.1em;">Top Scores:</div>' +
+                                    topScores.map((entry, i) => `<div style="font-size:1em;">${i + 1}. ${entry.name ? entry.name : 'Anonymous'} - ${formatNumber(entry.score)}</div>`).join('');
+                            } else {
+                                topScoresContainerNode.innerHTML = '';
+                            }
+                        });
                     }
                     break;
                 case MENU_PAUSE:
@@ -1689,7 +1663,9 @@
                             submitNameBtnNode.disabled = false;
                         }
                     } else {
-                        highScoreLblNode.textContent = `High Score: ${formatNumber(getHighScore())}`;
+                        getHighScore().then(score => {
+                            highScoreLblNode.textContent = `High Score: ${formatNumber(score)}`;
+                        });
                         if (nameInputContainerNode) {
                             nameInputContainerNode.style.display = 'none';
                             pendingHighScore = null;
@@ -1836,6 +1812,7 @@
             setScore(0);
             setCubeCount(0);
             spawnTime = getSpawnDelay();
+            getHighScore().then(score => { _lastHighscore = score; });
         }
 
         function pauseGame() {
@@ -2597,9 +2574,9 @@
 
         // Handle name submission for high score (PLAY GAME mode only)
         if (submitNameBtnNode) {
-            submitNameBtnNode.addEventListener('click', () => {
+            submitNameBtnNode.addEventListener('click', async () => {
                 if (pendingHighScore && playerNameInputNode.value.trim() && !submitNameBtnNode.disabled) {
-                    setTopScores({ name: playerNameInputNode.value.trim(), score: pendingHighScore });
+                    await setTopScores({ name: playerNameInputNode.value.trim(), score: pendingHighScore });
                     setHighScore(pendingHighScore); // update high score value
                     // Disable input and button to prevent further submissions
                     playerNameInputNode.disabled = true;
@@ -2616,6 +2593,61 @@
                     submitNameBtnNode.click();
                 }
             });
+        }
+
+        // =====================
+        // FIREBASE HIGHSCORE INTEGRATION
+        // =====================
+        // 1. Your Firebase config (replace with your actual keys)
+        const firebaseConfig = {
+          apiKey: "YOUR_API_KEY",
+          authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+          projectId: "YOUR_PROJECT_ID",
+          storageBucket: "YOUR_PROJECT_ID.appspot.com",
+          messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+          appId: "YOUR_APP_ID"
+        };
+        // 2. Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // 3. Save a highscore
+        async function saveHighscore(name, score) {
+          await db.collection('highscores').add({
+            name: name,
+            score: score,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        }
+
+        // 4. Get top highscores
+        async function getTopHighscores(limit = 3) {
+          const snapshot = await db.collection('highscores')
+            .orderBy('score', 'desc')
+            .limit(limit)
+            .get();
+          return snapshot.docs.map(doc => doc.data());
+        }
+
+        // 5. Replace getTopScores and setTopScores with Firestore versions
+        async function getTopScores() {
+          return await getTopHighscores();
+        }
+        async function setTopScores(entry) {
+          await saveHighscore(entry.name, entry.score);
+        }
+        // 6. getHighScore and _lastHighscore logic (declare only once)
+        async function getHighScore() {
+          const scores = await getTopScores();
+          return scores.length > 0 ? scores[0].score : 0;
+        }
+        let _lastHighscore = 0;
+        getHighScore().then(score => { _lastHighscore = score; });
+        function setHighScore(score) {
+          _lastHighscore = score;
+        }
+        function isNewHighScore() {
+          return state.game.score > _lastHighscore;
         }
 
     </script>
