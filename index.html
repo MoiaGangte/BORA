@@ -336,6 +336,11 @@
     <!-- Firestore SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
+    <!-- Firebase App (the core Firebase SDK) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <!-- Firestore SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
     <script>
         // globalConfig.js
         // ============================================================================
@@ -1926,7 +1931,7 @@
             // There is also a "scaled" variant taking game speed into account. This serves two purposes:
             //  - Lag won't create large spikes in speed/deltas
             //  - In slow mo, speed is increased proportionately to match "reality". Without this boost,
-            //    it feels like your actions are dampened in slow mo.
+            //    it feels like your actions are dampened in slow mo ny me///
             const forceMultiplier = 1 / (simSpeed * 0.75 + 0.25);
             pointerDelta.x = 0;
             pointerDelta.y = 0;
@@ -2624,12 +2629,21 @@
         // =====================
         // 1. Your Firebase config (replace with your actual keys)
         const firebaseConfig = {
+<<<<<<< HEAD
             apiKey: "YOUR_API_KEY",
             authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
             projectId: "YOUR_PROJECT_ID",
             storageBucket: "YOUR_PROJECT_ID.appspot.com",
             messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
             appId: "YOUR_APP_ID"
+=======
+          apiKey: "YOUR_API_KEY",
+          authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+          projectId: "YOUR_PROJECT_ID",
+          storageBucket: "YOUR_PROJECT_ID.appspot.com",
+          messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+          appId: "YOUR_APP_ID"
+>>>>>>> fe35ed967dd39f5df6ea5133fe2ac9f35e48cb62
         };
         // 2. Initialize Firebase
         firebase.initializeApp(firebaseConfig);
@@ -2637,24 +2651,41 @@
 
         // 3. Save a highscore
         async function saveHighscore(name, score) {
+<<<<<<< HEAD
             await db.collection('highscores').add({
                 name: name,
                 score: score,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
             });
+=======
+          await db.collection('highscores').add({
+            name: name,
+            score: score,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          });
+>>>>>>> fe35ed967dd39f5df6ea5133fe2ac9f35e48cb62
         }
 
         // 4. Get top highscores
         async function getTopHighscores(limit = 3) {
+<<<<<<< HEAD
             const snapshot = await db.collection('highscores')
                 .orderBy('score', 'desc')
                 .limit(limit)
                 .get();
             return snapshot.docs.map(doc => doc.data());
+=======
+          const snapshot = await db.collection('highscores')
+            .orderBy('score', 'desc')
+            .limit(limit)
+            .get();
+          return snapshot.docs.map(doc => doc.data());
+>>>>>>> fe35ed967dd39f5df6ea5133fe2ac9f35e48cb62
         }
 
         // 5. Replace getTopScores and setTopScores with Firestore versions
         async function getTopScores() {
+<<<<<<< HEAD
             return await getTopHighscores();
         }
         async function setTopScores(entry) {
@@ -2664,14 +2695,32 @@
         async function getHighScore() {
             const scores = await getTopScores();
             return scores.length > 0 ? scores[0].score : 0;
+=======
+          return await getTopHighscores();
+        }
+        async function setTopScores(entry) {
+          await saveHighscore(entry.name, entry.score);
+        }
+        // 6. getHighScore and _lastHighscore logic (declare only once)
+        async function getHighScore() {
+          const scores = await getTopScores();
+          return scores.length > 0 ? scores[0].score : 0;
+>>>>>>> fe35ed967dd39f5df6ea5133fe2ac9f35e48cb62
         }
         let _lastHighscore = 0;
         getHighScore().then(score => { _lastHighscore = score; });
         function setHighScore(score) {
+<<<<<<< HEAD
             _lastHighscore = score;
         }
         function isNewHighScore() {
             return state.game.score > _lastHighscore;
+=======
+          _lastHighscore = score;
+        }
+        function isNewHighScore() {
+          return state.game.score > _lastHighscore;
+>>>>>>> fe35ed967dd39f5df6ea5133fe2ac9f35e48cb62
         }
 
     </script>
